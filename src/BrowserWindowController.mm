@@ -351,12 +351,6 @@ static const CGFloat kFindBarH      = 36.0;
 // ── Tab event handlers ────────────────────────────────────────────────────────
 
 - (void)onTabAdded:(BrowserTab*)tab atIndex:(NSInteger)index {
-    tab.tabButton.frame = NSMakeRect(0, 2, kTabW, kTabBarH-4);
-    tab.tabButton.tag    = index;
-    tab.tabButton.target = self;
-    tab.tabButton.action = @selector(tabButtonClicked:);
-    [_tabBarView addSubview:tab.tabButton];
-
     tab.webView.frame            = _contentArea.bounds;
     tab.webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     tab.webView.hidden           = YES;
@@ -375,6 +369,7 @@ static const CGFloat kFindBarH      = 36.0;
     for (BrowserTab* t in _tabManager.tabs)
         t.tabButton.state = (t == tab) ? NSControlStateValueOn : NSControlStateValueOff;
     [self.window setTitle:tab.title.length ? tab.title : @"KBrowser"];
+    [self rebuildTabStrip];
 }
 
 - (void)onTitleChanged:(NSString*)title forTab:(BrowserTab*)tab {
