@@ -1,4 +1,5 @@
 #import "TabManager.h"
+#import "ContentBlocker.h"
 
 // ── BrowserTab ───────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@
 - (BrowserTab*)newTabWithURL:(NSString*)url {
     WKWebViewConfiguration* config = [WKWebViewConfiguration new];
     config.preferences.javaScriptCanOpenWindowsAutomatically = NO;
+    [[ContentBlocker shared] applyToConfiguration:config completion:nil];
 
     BrowserTab* tab   = [BrowserTab new];
     tab.webView       = [[WKWebView alloc] initWithFrame:NSZeroRect configuration:config];
@@ -55,6 +57,9 @@
                     options:NSKeyValueObservingOptionNew context:nil];
     [tab.webView addObserver:self forKeyPath:@"URL"
                     options:NSKeyValueObservingOptionNew context:nil];
+
+    // Set default icon
+    tab.favicon = [NSImage imageWithSystemSymbolName:@"globe" accessibilityDescription:nil];
 
     NSInteger index = (NSInteger)_mutableTabs.count;
     [_mutableTabs addObject:tab];
@@ -133,6 +138,7 @@
     tab.title = title;  tab.url = url;
     if (self.onTitleChanged) self.onTitleChanged(tab, title);
     if (self.onURLChanged)   self.onURLChanged(tab, url);
+    [self updateFaviconForTab:tab];
 }
 
 - (void)webView:(WKWebView*)wv didFailNavigation:(WKNavigation*)_ withError:(NSError*)__ {
@@ -167,6 +173,52 @@
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+- (void)updateFaviconForTab:(BrowserTab*)tab {
+    // 1. Try to extract from page via JS
+    NSString* js = @"(function() {"
+    "  var rels = ['icon', 'shortcut icon', 'apple-touch-icon'];"
+    "  for (var i = 0; i < rels.length; i++) {"
+    "    var el = document.querySelector('link[rel=\"' + rels[i] + '\"]');"
+    "    if (el && el.href) return el.href;"
+    "  }"
+    "  return null;"
+    "})();";
+
+    __weak typeof(self) weakSelf = self;
+    [tab.webView evaluateJavaScript:js completionHandler:^(id result, NSError* error) {
+        NSString* iconURLString = (NSString*)result;
+        if (![iconURLString isKindOfClass:[NSString class]] || iconURLString.length == 0) {
+            // 2. Fallback to Google Favicon API
+            NSURL* url = [NSURL URLWithString:tab.url];
+            if (url.host) {
+                iconURLString = [NSString stringWithFormat:@"https://www.google.com/s2/favicons?domain=%@&sz=32", url.host];
+            }
+        }
+
+        if (iconURLString) {
+            [weakSelf downloadFavicon:iconURLString forTab:tab];
+        }
+    }];
+}
+
+- (void)downloadFavicon:(NSString*)urlString forTab:(BrowserTab*)tab {
+    NSURL* url = [NSURL URLWithString:urlString];
+    if (!url) return;
+
+    __weak typeof(self) weakSelf = self;
+    [[[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
+        if (data && !error) {
+            NSImage* image = [[NSImage alloc] initWithData:data];
+            if (image) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    tab.favicon = image;
+                    if (weakSelf.onFaviconChanged) weakSelf.onFaviconChanged(tab, image);
+                });
+            }
+        }
+    }] resume];
+}
 
 - (BrowserTab*)tabForWebView:(WKWebView*)wv {
     for (BrowserTab* t in _mutableTabs)

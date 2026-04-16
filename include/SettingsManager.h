@@ -13,6 +13,7 @@
 @property (assign) BOOL javascriptEnabled;
 @property (assign) BOOL blockPopups;
 @property (assign) BOOL privateBrowsing;
+@property (assign) BOOL adBlockEnabled;
 
 // Appearance
 @property (assign) BOOL showBookmarksBar;

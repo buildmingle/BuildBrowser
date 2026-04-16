@@ -16,6 +16,7 @@ add_executable(BuildBrowser MACOSX_BUNDLE
     src/SettingsPanel.mm
     src/SidePanel.mm
     src/DownloadsPanel.mm
+    src/ContentBlocker.mm
 )
 
 target_include_directories(BuildBrowser PRIVATE include)

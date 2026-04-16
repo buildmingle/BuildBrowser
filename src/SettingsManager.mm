@@ -6,6 +6,7 @@ static NSString* const kJavascript      = @"KBrowser.javascriptEnabled";
 static NSString* const kBlockPopups     = @"KBrowser.blockPopups";
 static NSString* const kPrivateBrowsing = @"KBrowser.privateBrowsing";
 static NSString* const kBookmarksBar    = @"KBrowser.showBookmarksBar";
+static NSString* const kAdBlock         = @"KBrowser.adBlockEnabled";
 
 @implementation SettingsManager
 
@@ -27,6 +28,7 @@ static NSString* const kBookmarksBar    = @"KBrowser.showBookmarksBar";
             kBlockPopups:     @YES,
             kPrivateBrowsing: @NO,
             kBookmarksBar:    @YES,
+            kAdBlock:         @YES,
         }];
     }
     return self;
@@ -48,10 +50,11 @@ BOOL_PREF(javascriptEnabled, setJavascriptEnabled, kJavascript)
 BOOL_PREF(blockPopups,       setBlockPopups,       kBlockPopups)
 BOOL_PREF(privateBrowsing,   setPrivateBrowsing,   kPrivateBrowsing)
 BOOL_PREF(showBookmarksBar,  setShowBookmarksBar,  kBookmarksBar)
+BOOL_PREF(adBlockEnabled,    setAdBlockEnabled,    kAdBlock)
 
 - (void)resetToDefaults {
     for (NSString* key in @[kHomepage, kSearchEngine, kJavascript,
-                            kBlockPopups, kPrivateBrowsing, kBookmarksBar])
+                            kBlockPopups, kPrivateBrowsing, kBookmarksBar, kAdBlock])
         [[NSUserDefaults standardUserDefaults] removeObjectForKey:key];
 }
 @end

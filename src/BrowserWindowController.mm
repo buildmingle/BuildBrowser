@@ -49,7 +49,7 @@ static const CGFloat kFindBarH      = 36.0;
 @end
 
 // ── BrowserWindowController private interface ─────────────────────────────────
-@interface BrowserWindowController ()
+@interface BrowserWindowController () <NSWindowDelegate, NSTextFieldDelegate>
 // Managers
 @property (strong) TabManager*      tabManager;
 // Chrome views
@@ -63,7 +63,9 @@ static const CGFloat kFindBarH      = 36.0;
 @property (strong) NSButton*        backBtn;
 @property (strong) NSButton*        fwdBtn;
 @property (strong) NSButton*        reloadBtn;
+@property (strong) NSButton*        homeBtn;      // New
 @property (strong) NSTextField*     urlField;
+@property (strong) NSButton*        readerModeBtn; // New
 @property (strong) NSButton*        bookmarkStarBtn;
 // Find bar widgets
 @property (strong) NSTextField*     findField;
@@ -132,12 +134,16 @@ static const CGFloat kFindBarH      = 36.0;
     _backBtn.frame   = NSMakeRect(cx,      (kToolbarH-kBtnSize)/2, kBtnSize, kBtnSize);
     _fwdBtn.frame    = NSMakeRect(cx+30,   (kToolbarH-kBtnSize)/2, kBtnSize, kBtnSize);
     _reloadBtn.frame = NSMakeRect(cx+62,   (kToolbarH-kBtnSize)/2, kBtnSize, kBtnSize);
+    _homeBtn   = [self makeSymbolButton:@"house" size:15 tooltip:@"Home"];
+    _homeBtn.frame   = NSMakeRect(cx+94,   (kToolbarH-kBtnSize)/2, kBtnSize, kBtnSize);
     _backBtn.target   = self; _backBtn.action   = @selector(goBack:);
     _fwdBtn.target    = self; _fwdBtn.action    = @selector(goForward:);
     _reloadBtn.target = self; _reloadBtn.action = @selector(reloadOrStop:);
+    _homeBtn.target   = self; _homeBtn.action   = @selector(goHome:);
     [_toolbarView addSubview:_backBtn];
     [_toolbarView addSubview:_fwdBtn];
     [_toolbarView addSubview:_reloadBtn];
+    [_toolbarView addSubview:_homeBtn];
 
     // Right-side icon buttons: bookmark | bookmarks | history | downloads | settings | new-tab
     NSArray* syms  = @[@"bookmark",       @"books.vertical", @"clock",   @"arrow.down.circle", @"gearshape", @"plus"];
@@ -155,7 +161,7 @@ static const CGFloat kFindBarH      = 36.0;
     }
 
     // URL field — fills the gap between nav cluster and right buttons
-    CGFloat urlX = cx + 96;
+    CGFloat urlX = cx + 128; // adjusted for Home button
     CGFloat urlW = rBase - urlX - 8;
     _urlField = [[NSTextField alloc] initWithFrame:NSMakeRect(urlX, (kToolbarH-26)/2, urlW, 26)];
     _urlField.placeholderString = @"Search or enter address…";
@@ -163,8 +169,17 @@ static const CGFloat kFindBarH      = 36.0;
     _urlField.focusRingType     = NSFocusRingTypeNone;
     _urlField.font              = [NSFont systemFontOfSize:13];
     _urlField.autoresizingMask  = NSViewWidthSizable;
+    _urlField.delegate = self;
     _urlField.target = self; _urlField.action = @selector(urlFieldActivated:);
     [_toolbarView addSubview:_urlField];
+
+    // Reader Mode button inside URL field (overlapping right edge)
+    _readerModeBtn = [self makeSymbolButton:@"doc.plaintext" size:13 tooltip:@"Reader Mode"];
+    _readerModeBtn.frame = NSMakeRect(urlX + urlW - 28, (kToolbarH-24)/2, 24, 24);
+    _readerModeBtn.autoresizingMask = NSViewMinXMargin;
+    _readerModeBtn.target = self; _readerModeBtn.action = @selector(toggleReaderMode:);
+    _readerModeBtn.hidden = YES;
+    [_toolbarView addSubview:_readerModeBtn];
 
     // Bottom edge of toolbar — 1px separator
     NSView* toolSep = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, W, 1)];
@@ -315,6 +330,7 @@ static const CGFloat kFindBarH      = 36.0;
     _tabManager.onURLChanged      = ^(BrowserTab* t, NSString* s)  { [ws onURLChanged:s forTab:t]; };
     _tabManager.onLoadProgress    = ^(BrowserTab* t, double p)     { [ws onLoadProgress:p forTab:t]; };
     _tabManager.onLoadStateChanged= ^(BrowserTab* t, BOOL l)       { [ws onLoadStateChanged:l forTab:t]; };
+    _tabManager.onFaviconChanged  = ^(BrowserTab* t, NSImage* i)   { [ws onFaviconChanged:i forTab:t]; };
 }
 
 - (void)wireSidePanel {
@@ -383,6 +399,11 @@ static const CGFloat kFindBarH      = 36.0;
     [_reloadBtn setImage:[NSImage imageWithSystemSymbolName:sym accessibilityDescription:nil]];
     [self updateNavButtons];
     if (!loading) [self injectContextMenuScript:tab.webView];
+    if (!loading) [self updateReaderModeAvailability:tab];
+}
+
+- (void)onFaviconChanged:(NSImage*)icon forTab:(BrowserTab*)tab {
+    [self rebuildTabStrip];
 }
 
 // ── Navigation actions ────────────────────────────────────────────────────────
@@ -394,6 +415,7 @@ static const CGFloat kFindBarH      = 36.0;
 
 - (void)goBack:(id)_    { [_tabManager.activeTab.webView goBack]; }
 - (void)goForward:(id)_ { [_tabManager.activeTab.webView goForward]; }
+- (void)goHome:(id)_    { [_tabManager.activeTab.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[SettingsManager shared].homepage]]]; }
 
 - (void)reloadOrStop:(id)_ {
     WKWebView* wv = _tabManager.activeTab.webView;
@@ -406,6 +428,23 @@ static const CGFloat kFindBarH      = 36.0;
     NSString* url = [TabManager sanitizeURL:_urlField.stringValue];
     [tab.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:url]]];
     [self.window makeFirstResponder:tab.webView];
+}
+
+- (void)toggleReaderMode:(id)_ {
+    // Basic toggle: we'll use a script to find content and display it cleanly
+    // For a real generic 'Reader Mode', WebKit provides _WKWebViewPrintFormatter or just CSS overrides
+    // Here we'll just toggle a simplistic fullscreen overlay for now.
+    WKWebView* wv = _tabManager.activeTab.webView;
+    [wv evaluateJavaScript:@"(function(){ if(window._readerOn){ location.reload(); } else { document.body.innerHTML = '<div style=\"max-width:800px;margin:50px auto;font-family:serif;font-size:20px;line-height:1.6;color:#333;background:#fff;padding:40px;\">' + (document.querySelector('article') || document.body).innerHTML + '</div>'; window._readerOn=true; document.body.style.background='#fff'; } })()" completionHandler:nil];
+}
+
+- (void)updateReaderModeAvailability:(BrowserTab*)tab {
+    // Show reader button if we find an <article> tag or enough text
+    [tab.webView evaluateJavaScript:@"(!!document.querySelector('article') || document.body.innerText.length > 2000)" completionHandler:^(id res, NSError* _) {
+        if (tab == self.tabManager.activeTab) {
+            self.readerModeBtn.hidden = ![res boolValue];
+        }
+    }];
 }
 
 - (void)tabButtonClicked:(NSButton*)btn {
@@ -563,11 +602,17 @@ static const CGFloat kFindBarH      = 36.0;
             item.layer.borderColor     = [NSColor colorWithWhite:1.0 alpha:0.12].CGColor;
             item.layer.borderWidth     = 0.5;
         }
+        
+        // Favicon
+        NSImageView* iv = [[NSImageView alloc] initWithFrame:NSMakeRect(8, (kTabBarH-4-16)/2, 16, 16)];
+        iv.image = tab.favicon;
+        iv.imageScaling = NSImageScaleProportionallyUpOrDown;
+        [item addSubview:iv];
 
         // Title label
         NSTextField* lbl = [NSTextField labelWithString:tab.title.length ? tab.title : @"New Tab"];
-        CGFloat lblX = showClose ? 10 : 8;
-        CGFloat lblW = showClose ? tabW - 36 : tabW - 16;
+        CGFloat lblX = 28;
+        CGFloat lblW = showClose ? tabW - 54 : tabW - 36;
         lbl.frame = NSMakeRect(lblX, (kTabBarH-4-16)/2, lblW, 16);
         lbl.font  = active
             ? [NSFont systemFontOfSize:12 weight:NSFontWeightMedium]
@@ -602,6 +647,14 @@ static const CGFloat kFindBarH      = 36.0;
 
         [_tabBarView addSubview:item];
     }
+
+    // Add "+" button after the last tab
+    NSButton* addBtn = [self makeSymbolButton:@"plus" size:12 tooltip:@"New Tab (⌘T)"];
+    CGFloat addX = 2 + tabs.count * (tabW + 2) + 4;
+    addBtn.frame = NSMakeRect(addX, (kTabBarH - 24) / 2, 24, 24);
+    addBtn.target = self;
+    addBtn.action = @selector(newTab:);
+    [_tabBarView addSubview:addBtn];
 }
 
 - (NSButton*)makeSymbolButton:(NSString*)sym size:(CGFloat)ptSize tooltip:(NSString*)tip {
@@ -637,6 +690,34 @@ static const CGFloat kFindBarH      = 36.0;
     "  }"
     "}, true);";
     [wv evaluateJavaScript:js completionHandler:nil];
+}
+
+// ── NSTextFieldDelegate ───────────────────────────────────────────────────────
+
+- (NSArray<NSString*>*)control:(NSControl*)control textView:(NSTextView*)textView completions:(NSArray<NSString*>*)words forPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger*)index {
+    if (control != _urlField) return words;
+    
+    NSString* partial = [control.stringValue substringWithRange:charRange];
+    if (partial.length < 2) return words;
+
+    NSMutableArray* results = [NSMutableArray new];
+    // 1. Check open tabs
+    for (BrowserTab* t in _tabManager.tabs) {
+        if ([t.url containsString:partial]) [results addObject:t.url];
+    }
+    // 2. Check history
+    for (HistoryEntry* e in [HistoryManager shared].entries) {
+        if ([e.url containsString:partial]) [results addObject:e.url];
+        if (results.count > 10) break;
+    }
+    // 3. Check bookmarks
+    for (Bookmark* b in [BookmarkManager shared].bookmarks) {
+        if ([b.url containsString:partial]) [results addObject:b.url];
+        if (results.count > 20) break;
+    }
+
+    // Deduplicate
+    return [[NSSet setWithArray:results] allObjects];
 }
 
 // ── Window delegate ───────────────────────────────────────────────────────────

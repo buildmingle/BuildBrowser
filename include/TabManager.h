@@ -8,6 +8,7 @@
 @property (strong) NSButton*    tabButton;   // shown in tab strip
 @property (copy)   NSString*    title;
 @property (copy)   NSString*    url;
+@property (strong) NSImage*     favicon;     // New property
 @end
 
 // Owns all tabs, drives switching / creation / closing
@@ -25,6 +26,7 @@
 @property (copy) void (^onURLChanged)(BrowserTab* tab, NSString* url);
 @property (copy) void (^onLoadProgress)(BrowserTab* tab, double progress);
 @property (copy) void (^onLoadStateChanged)(BrowserTab* tab, BOOL loading);
+@property (copy) void (^onFaviconChanged)(BrowserTab* tab, NSImage* icon); // New callback
 
 - (BrowserTab*)newTabWithURL:(NSString*)url;
 - (void)closeTabAtIndex:(NSInteger)index;
