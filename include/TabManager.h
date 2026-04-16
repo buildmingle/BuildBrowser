@@ -1,0 +1,35 @@
+#pragma once
+#import <Cocoa/Cocoa.h>
+#import <WebKit/WebKit.h>
+
+// One tab = one WKWebView + its button in the tab strip
+@interface BrowserTab : NSObject
+@property (strong) WKWebView*   webView;
+@property (strong) NSButton*    tabButton;   // shown in tab strip
+@property (copy)   NSString*    title;
+@property (copy)   NSString*    url;
+@end
+
+// Owns all tabs, drives switching / creation / closing
+@interface TabManager : NSObject
+
+@property (readonly) NSArray<BrowserTab*>* tabs;
+@property (readonly) BrowserTab*           activeTab;
+@property (readonly) NSInteger             activeIndex;
+
+// Callbacks fired when state changes — set by BrowserWindowController
+@property (copy) void (^onTabAdded)(BrowserTab* tab, NSInteger index);
+@property (copy) void (^onTabClosed)(NSInteger index);
+@property (copy) void (^onTabSwitched)(BrowserTab* tab, NSInteger index);
+@property (copy) void (^onTitleChanged)(BrowserTab* tab, NSString* title);
+@property (copy) void (^onURLChanged)(BrowserTab* tab, NSString* url);
+@property (copy) void (^onLoadProgress)(BrowserTab* tab, double progress);
+@property (copy) void (^onLoadStateChanged)(BrowserTab* tab, BOOL loading);
+
+- (BrowserTab*)newTabWithURL:(NSString*)url;
+- (void)closeTabAtIndex:(NSInteger)index;
+- (void)switchToIndex:(NSInteger)index;
+
++ (NSString*)sanitizeURL:(NSString*)input;
+
+@end

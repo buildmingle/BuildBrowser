@@ -1,0 +1,3 @@
+/Users/al/Documents/browser/browser/build/CMakeFiles/kbrowser.dir
+/Users/al/Documents/browser/browser/build/CMakeFiles/edit_cache.dir
+/Users/al/Documents/browser/browser/build/CMakeFiles/rebuild_cache.dir

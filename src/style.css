@@ -1,0 +1,60 @@
+/* BuildBrowser — application stylesheet
+   Loaded at runtime via GtkCssProvider                              */
+
+/* ── Tab bar strip ──────────────────────────────────────────────── */
+.tab-bar {
+    background-color: @headerbar_bg_color;
+    border-bottom: 1px solid @borders;
+    padding: 2px 4px;
+}
+
+/* Individual tab toggle button */
+.tab-button {
+    border-radius: 6px 6px 0 0;
+    padding: 4px 8px;
+    min-height: 28px;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background 120ms ease;
+}
+
+.tab-button:hover {
+    background-color: alpha(@window_fg_color, 0.08);
+}
+
+.tab-button:checked,
+.tab-button:active {
+    background-color: @window_bg_color;
+    border-color: @borders;
+    border-bottom-color: @window_bg_color;
+    /* merges with content area */
+}
+
+/* ── Progress bar — thin accent line at top ─────────────────────── */
+progressbar {
+    min-height: 3px;
+}
+
+progressbar>trough {
+    min-height: 3px;
+    background-color: transparent;
+    border: none;
+}
+
+progressbar>trough>progress {
+    min-height: 3px;
+    background-color: @accent_color;
+    border-radius: 0;
+}
+
+/* ── URL entry ──────────────────────────────────────────────────── */
+headerbar entry {
+    border-radius: 20px;
+    padding: 4px 12px;
+    min-width: 320px;
+}
+
+/* ── Nav button group ───────────────────────────────────────────── */
+.linked>button {
+    border-radius: 6px;
+}
