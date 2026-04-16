@@ -1,59 +1,65 @@
 # BuildBrowser
 
-A lightweight C++ web browser built on **WebKitGTK** + **GTK4**.
+A high-performance, native macOS web browser built with **Cocoa** + **WebKit**.
+
+BuildBrowser is designed to be lightweight and deeply integrated into the macOS ecosystem, offering a clean interface and robust feature set without the overhead of heavy cross-platform frameworks.
 
 ## Features
-- Full web rendering via WebKit (same engine as Safari)
-- Multi-tab support with close buttons
-- Back / Forward / Reload / Stop navigation
-- Smart URL bar — bare domains get `https://`, plain text becomes a DuckDuckGo search
-- Thin progress bar while pages load
-- Clean GTK4 UI that follows your system theme
 
-## Dependencies
+- **WebKit-Powered Rendering**: Utilizes the native Apple WebKit engine for fast and secure web browsing.
+- **Tab Management**: Advanced multi-tab support with reordering and fluid transitions.
+- **Integrated Sidebar**: Quick access to bookmarks and history via a native side panel.
+- **Download Management**: Dedicated panel to track and manage files.
+- **Bookmarks & History**: robust local storage for your frequent sites and navigation history.
+- **Customizable Settings**: Native macOS settings panel for fine-grained configuration.
+- **Deep macOS Integration**: Follows system themes (Light/Dark mode) and utilizes native AppKit components.
 
-| Package | Ubuntu/Debian | Fedora | Arch |
-|---------|--------------|--------|------|
-| GTK4 dev | `libgtk-4-dev` | `gtk4-devel` | `gtk4` |
-| WebKitGTK 6 | `libwebkitgtk-6.0-dev` | `webkitgtk6.0-devel` | `webkitgtk-6.0` |
-| CMake ≥ 3.16 | `cmake` | `cmake` | `cmake` |
+## Requirements
 
-```bash
-# Ubuntu 24.04+
-sudo apt install libgtk-4-dev libwebkitgtk-6.0-dev cmake build-essential
-
-# Fedora 39+
-sudo dnf install gtk4-devel webkitgtk6.0-devel cmake gcc-c++
-
-# Arch
-sudo pacman -S gtk4 webkitgtk-6.0 cmake base-devel
-```
+- **macOS**: 12.0 (Monterey) or later.
+- **CMake**: 3.16 or later.
+- **Xcode Command Line Tools**: Required for compilation.
 
 ## Build & Run
+
+Ensure you have CMake installed, then run the convenience script:
 
 ```bash
 chmod +x build.sh
 ./build.sh
-./build/BuildBrowser
 ```
 
-## Project Layout
+To run the application:
+
+```bash
+open build/BuildBrowser.app
+```
+
+## Project Structure
 
 ```
 browser/
-├── CMakeLists.txt          # Build definition
-├── build.sh                # Convenience build script
-├── include/
-│   └── browser_window.h    # BrowserWindow + Tab structs
-└── src/
-    ├── main.cpp            # App entry point, CSS loader
-    ├── browser_window.cpp  # All window/tab/navigation logic
-    └── style.css           # Application stylesheet
+├── CMakeLists.txt              # Build system definition
+├── build.sh                    # Build orchestration script
+├── include/                    # Header files (.h)
+│   ├── AppDelegate.h
+│   ├── BrowserWindowController.h
+│   ├── TabManager.h
+│   └── ...
+└── src/                        # Implementation files (.mm)
+    ├── main.mm                 # App entry point
+    ├── AppDelegate.mm          # App lifecycle management
+    ├── BrowserWindowController.mm # Main window logic
+    ├── TabManager.mm           # Tabs & Navigation logic
+    └── ...
 ```
 
-## Extending
+## Tech Stack
 
-- **New tab page**: change the default URL in `BrowserWindow::new_tab()`
-- **Bookmarks**: add a `std::vector<std::string>` to `BrowserWindow` and a toolbar button
-- **Downloads**: connect `WebKitWebContext::download-started` signal
-- **Dark mode**: GTK4 follows the system preference automatically
+- **Languge**: Objective-C++ (C++17)
+- **Frameworks**: Foundation, AppKit (Cocoa), WebKit
+- **Build System**: CMake 3.16+
+- **Memory Management**: Automatic Reference Counting (ARC)
+
+## Note for Developers
+This project has transitioned from a GTK-based Linux implementation to a native macOS Cocoa application. The previous GTK source files (`src/main.cpp`, `src/browser_window.cpp`) are deprecated and are not included in the primary macOS build.
