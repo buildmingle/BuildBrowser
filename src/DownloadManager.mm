@@ -1,5 +1,7 @@
 #import "DownloadManager.h"
 
+#import "ProfileManager.h"
+
 @implementation DownloadItem
 @end
 
@@ -9,11 +11,18 @@
 
 @implementation DownloadManager
 
-+ (instancetype)shared {
-    static DownloadManager* inst;
++ (instancetype)profileShared {
+    static NSMutableDictionary* instances;
     static dispatch_once_t t;
-    dispatch_once(&t, ^{ inst = [DownloadManager new]; });
-    return inst;
+    dispatch_once(&t, ^{ instances = [NSMutableDictionary new]; });
+    
+    Profile* p = [ProfileManager shared].activeProfile;
+    if (!p) return nil;
+    
+    if (!instances[p.uuid]) {
+        instances[p.uuid] = [DownloadManager new];
+    }
+    return instances[p.uuid];
 }
 
 - (instancetype)init {

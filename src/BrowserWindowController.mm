@@ -3,6 +3,8 @@
 #import "HistoryManager.h"
 #import "SettingsManager.h"
 #import "DownloadManager.h"
+#import "ProfilePanel.h"
+#import "ProfileManager.h"
 #import <objc/runtime.h>
 
 // Forward-declare panels (defined in their own .mm files, compiled together)
@@ -75,7 +77,7 @@ static const CGFloat kFindBarH      = 36.0;
 
 @implementation BrowserWindowController
 
-- (instancetype)init {
+- (instancetype)initWithProfile:(Profile*)profile {
     NSRect frame = NSMakeRect(0, 0, 1280, 800);
     NSWindowStyleMask style = NSWindowStyleMaskTitled
                             | NSWindowStyleMaskClosable
@@ -85,7 +87,7 @@ static const CGFloat kFindBarH      = 36.0;
     NSWindow* win = [[NSWindow alloc] initWithContentRect:frame
                                                styleMask:style
                                                  backing:NSBackingStoreBuffered defer:NO];
-    win.title                      = @"KBrowser";
+    win.title                      = @"BuildBrowser";
     win.titlebarAppearsTransparent = YES;
     win.movableByWindowBackground  = YES;
     win.minSize                    = NSMakeSize(640, 480);
@@ -94,15 +96,20 @@ static const CGFloat kFindBarH      = 36.0;
     self = [super initWithWindow:win];
     if (!self) return nil;
     win.delegate = self;
-    _tabManager  = [TabManager new];
+    _profile     = profile;
+    _tabManager  = [[TabManager alloc] initWithProfile:profile];
 
     [self buildUI];
     [self wireTabManagerCallbacks];
     [self wireSidePanel];
 
     // Apply settings to first tab config
-    [_tabManager newTabWithURL:[SettingsManager shared].homepage];
+    [_tabManager newTabWithURL:[SettingsManager profileShared].homepage];
     return self;
+}
+
+- (instancetype)init {
+    return [self initWithProfile:[ProfileManager shared].activeProfile];
 }
 
 // ── UI construction ───────────────────────────────────────────────────────────
@@ -145,19 +152,19 @@ static const CGFloat kFindBarH      = 36.0;
     [_toolbarView addSubview:_reloadBtn];
     [_toolbarView addSubview:_homeBtn];
 
-    // Right-side icon buttons: bookmark | bookmarks | history | downloads | settings | new-tab
-    NSArray* syms  = @[@"bookmark",       @"books.vertical", @"clock",   @"arrow.down.circle", @"gearshape", @"plus"];
-    NSArray* tips  = @[@"Bookmark (⌘D)",  @"Bookmarks (⌘B)", @"History (⌘Y)", @"Downloads (⌘J)", @"Settings (⌘,)", @"New Tab (⌘T)"];
-    SEL acts[] = { @selector(toggleBookmark:), @selector(showBookmarks:), @selector(showHistory:),
+    // Right-side icon buttons: profile | bookmark | bookmarks | history | downloads | settings | new-tab
+    NSArray* syms  = @[@"person.circle", @"bookmark",       @"books.vertical", @"clock",   @"arrow.down.circle", @"gearshape", @"plus"];
+    NSArray* tips  = @[@"Profile",         @"Bookmark (⌘D)",  @"Bookmarks (⌘B)", @"History (⌘Y)", @"Downloads (⌘J)", @"Settings (⌘,)", @"New Tab (⌘T)"];
+    SEL acts[] = { @selector(showProfileMenu:), @selector(toggleBookmark:), @selector(showBookmarks:), @selector(showHistory:),
                    @selector(showDownloads:),  @selector(showSettings:),  @selector(newTab:) };
-    CGFloat rBase = W - 6 * 32 - 8;
-    for (NSInteger i = 0; i < 6; i++) {
+    CGFloat rBase = W - 7 * 32 - 8;
+    for (NSInteger i = 0; i < 7; i++) {
         NSButton* btn = [self makeSymbolButton:syms[i] size:15 tooltip:tips[i]];
         btn.frame = NSMakeRect(rBase + i * 32, (kToolbarH-kBtnSize)/2, kBtnSize, kBtnSize);
         btn.autoresizingMask = NSViewMinXMargin;
         btn.target = self; btn.action = acts[i];
         [_toolbarView addSubview:btn];
-        if (i == 0) _bookmarkStarBtn = btn;
+        if (i == 1) _bookmarkStarBtn = btn;
     }
 
     // URL field — fills the gap between nav cluster and right buttons
@@ -234,7 +241,7 @@ static const CGFloat kFindBarH      = 36.0;
     bmSep.autoresizingMask = NSViewWidthSizable;
     [_bookmarksBarView addSubview:bmSep];
     [root addSubview:_bookmarksBarView];
-    _bookmarksBarView.hidden = ![SettingsManager shared].showBookmarksBar;
+    _bookmarksBarView.hidden = ![SettingsManager profileShared].showBookmarksBar;
     [self rebuildBookmarksBar];
 
     // ── Find bar (frosted, slides up from bottom) ─────────────────────────────
@@ -297,7 +304,7 @@ static const CGFloat kFindBarH      = 36.0;
     CGFloat H = root.bounds.size.height;
 
     CGFloat top = H - kToolbarH - kProgressH - kTabBarH;
-    if (![SettingsManager shared].showBookmarksBar || _bookmarksBarView.hidden == NO)
+    if (![SettingsManager profileShared].showBookmarksBar || _bookmarksBarView.hidden == NO)
         top -= kBookmarksBarH;
     CGFloat bottom = _findBarVisible ? kFindBarH : 0;
     CGFloat contentH = top - bottom;
@@ -372,11 +379,11 @@ static const CGFloat kFindBarH      = 36.0;
 
 - (void)onTitleChanged:(NSString*)title forTab:(BrowserTab*)tab {
     if (tab == _tabManager.activeTab)
-        [self.window setTitle:title.length ? title : @"KBrowser"];
+        [self.window setTitle:title.length ? title : @"BuildBrowser"];
     [self rebuildTabStrip];  // refresh label + weight
     // Record in history (skip private mode)
-    if (![SettingsManager shared].privateBrowsing && tab.url.length)
-        [[HistoryManager shared] recordVisitWithTitle:title url:tab.url];
+    if (![SettingsManager profileShared].privateBrowsing && tab.url.length)
+        [[HistoryManager profileShared] recordVisitWithTitle:title url:tab.url];
 }
 
 - (void)onURLChanged:(NSString*)url forTab:(BrowserTab*)tab {
@@ -409,13 +416,13 @@ static const CGFloat kFindBarH      = 36.0;
 // ── Navigation actions ────────────────────────────────────────────────────────
 
 - (void)newTab:(id)_ {
-    [_tabManager newTabWithURL:[SettingsManager shared].homepage];
+    [_tabManager newTabWithURL:[SettingsManager profileShared].homepage];
     [self rebuildTabStrip];
 }
 
 - (void)goBack:(id)_    { [_tabManager.activeTab.webView goBack]; }
 - (void)goForward:(id)_ { [_tabManager.activeTab.webView goForward]; }
-- (void)goHome:(id)_    { [_tabManager.activeTab.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[SettingsManager shared].homepage]]]; }
+- (void)goHome:(id)_    { [_tabManager.activeTab.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[SettingsManager profileShared].homepage]]]; }
 
 - (void)reloadOrStop:(id)_ {
     WKWebView* wv = _tabManager.activeTab.webView;
@@ -464,7 +471,7 @@ static const CGFloat kFindBarH      = 36.0;
 - (void)toggleBookmark:(id)_ {
     BrowserTab* tab = _tabManager.activeTab;
     if (!tab || !tab.url.length) return;
-    BookmarkManager* bm = [BookmarkManager shared];
+    BookmarkManager* bm = [BookmarkManager profileShared];
     if ([bm isBookmarked:tab.url]) {
         NSArray<Bookmark*>* list = bm.bookmarks;
         for (NSInteger i = 0; i < (NSInteger)list.count; i++)
@@ -478,7 +485,7 @@ static const CGFloat kFindBarH      = 36.0;
 
 - (void)updateBookmarkStar {
     BrowserTab* tab = _tabManager.activeTab;
-    BOOL starred = tab && [[BookmarkManager shared] isBookmarked:tab.url];
+    BOOL starred = tab && [[BookmarkManager profileShared] isBookmarked:tab.url];
     NSString* sym = starred ? @"bookmark.fill" : @"bookmark";
     [_bookmarkStarBtn setImage:[NSImage imageWithSystemSymbolName:sym accessibilityDescription:nil]];
 }
@@ -491,7 +498,7 @@ static const CGFloat kFindBarH      = 36.0;
         if ([v isKindOfClass:[NSButton class]]) [v removeFromSuperview];
 
     CGFloat x = 8;
-    for (Bookmark* bm in [BookmarkManager shared].bookmarks) {
+    for (Bookmark* bm in [BookmarkManager profileShared].bookmarks) {
         NSButton* btn = [NSButton buttonWithTitle:bm.title target:self
                                            action:@selector(bookmarkBarItemClicked:)];
         btn.bezelStyle = NSBezelStyleInline;
@@ -520,6 +527,37 @@ static const CGFloat kFindBarH      = 36.0;
 - (void)showHistory:(id)_    { [[SidePanel shared] showHistory]; }
 - (void)showDownloads:(id)_  { [[DownloadsPanel shared] show]; }
 - (void)showSettings:(id)_   { [SettingsPanel showAsSheetOnWindow:self.window]; }
+
+- (void)showProfileMenu:(id)sender {
+    NSMenu* menu = [NSMenu new];
+    for (Profile* p in [ProfileManager shared].profiles) {
+        NSMenuItem* item = [menu addItemWithTitle:p.name action:@selector(switchProfileFromMenu:) keyEquivalent:@""];
+        item.representedObject = p;
+        if (p == _profile) item.state = NSControlStateValueOn;
+    }
+    [menu addItem:[NSMenuItem separatorItem]];
+    [menu addItemWithTitle:@"Manage Profiles…" action:@selector(manageProfiles:) keyEquivalent:@""];
+    
+    NSButton* btn = (NSButton*)sender;
+    [NSMenu popUpContextMenu:menu withEvent:[NSApp currentEvent] forView:btn];
+}
+
+- (void)switchProfileFromMenu:(NSMenuItem*)item {
+    Profile* p = (Profile*)item.representedObject;
+    if (p == _profile) return;
+    
+    // Switch profile: Open new window with selected profile
+    [ProfileManager shared].activeProfile = p;
+    [[ProfileManager shared] saveProfiles];
+    
+    BrowserWindowController* wc = [[BrowserWindowController alloc] initWithProfile:p];
+    [wc showWindow:nil];
+    // Keep reference in AppDelegate (or just don't close this one)
+}
+
+- (void)manageProfiles:(id)_ {
+    [ProfilePanel showAsSheetOnWindow:self.window];
+}
 
 // ── Find in page ──────────────────────────────────────────────────────────────
 
@@ -706,12 +744,12 @@ static const CGFloat kFindBarH      = 36.0;
         if ([t.url containsString:partial]) [results addObject:t.url];
     }
     // 2. Check history
-    for (HistoryEntry* e in [HistoryManager shared].entries) {
+    for (HistoryEntry* e in [HistoryManager profileShared].entries) {
         if ([e.url containsString:partial]) [results addObject:e.url];
         if (results.count > 10) break;
     }
     // 3. Check bookmarks
-    for (Bookmark* b in [BookmarkManager shared].bookmarks) {
+    for (Bookmark* b in [BookmarkManager profileShared].bookmarks) {
         if ([b.url containsString:partial]) [results addObject:b.url];
         if (results.count > 20) break;
     }

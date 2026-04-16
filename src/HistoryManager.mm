@@ -41,28 +41,37 @@ static const NSInteger kMaxEntries = 2000;
 // ── HistoryManager
 // ────────────────────────────────────────────────────────────
 
+#import "ProfileManager.h"
+
 @interface HistoryManager ()
 @property(strong) NSMutableArray<HistoryEntry *> *mutableEntries;
+@property(copy) NSString* rootPath;
 @end
 
 @implementation HistoryManager
 
-+ (instancetype)shared {
-  static HistoryManager *inst;
-  static dispatch_once_t t;
-  dispatch_once(&t, ^{
-    inst = [HistoryManager new];
-  });
-  return inst;
++ (instancetype)profileShared {
+    static NSMutableDictionary* instances;
+    static dispatch_once_t t;
+    dispatch_once(&t, ^{ instances = [NSMutableDictionary new]; });
+    
+    Profile* p = [ProfileManager shared].activeProfile;
+    if (!p) return nil;
+    
+    if (!instances[p.uuid]) {
+        instances[p.uuid] = [[HistoryManager alloc] initWithRootPath:[p dataDirectory]];
+    }
+    return instances[p.uuid];
 }
 
-- (instancetype)init {
-  self = [super init];
-  if (self) {
-    _mutableEntries = [NSMutableArray new];
-    [self load];
-  }
-  return self;
+- (instancetype)initWithRootPath:(NSString*)path {
+    self = [super init];
+    if (self) {
+        _rootPath = path;
+        _mutableEntries = [NSMutableArray new];
+        [self load];
+    }
+    return self;
 }
 
 - (NSArray<HistoryEntry *> *)entries {
@@ -123,13 +132,6 @@ static const NSInteger kMaxEntries = 2000;
 }
 
 - (NSString *)filePath {
-  NSString *support = [NSSearchPathForDirectoriesInDomains(
-      NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject];
-  NSString *dir = [support stringByAppendingPathComponent:@"BuildBrowser"];
-  [[NSFileManager defaultManager] createDirectoryAtPath:dir
-                            withIntermediateDirectories:YES
-                                             attributes:nil
-                                                  error:nil];
-  return [dir stringByAppendingPathComponent:@"history.plist"];
+  return [_rootPath stringByAppendingPathComponent:@"history.plist"];
 }
 @end

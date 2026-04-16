@@ -1,6 +1,6 @@
-#import <Cocoa/Cocoa.h>
 #import "SettingsManager.h"
 #import "HistoryManager.h"
+#import "ProfileManager.h"
 
 // ── SettingsPanel ─────────────────────────────────────────────────────────────
 // macOS-style settings: sidebar nav on the left, content pane on the right.
@@ -344,7 +344,7 @@ static NSTextField* makeRowLabel(NSString* text) {
 // ── Reload values ─────────────────────────────────────────────────────────────
 
 - (void)reloadValues {
-    SettingsManager* s = [SettingsManager shared];
+    SettingsManager* s = [SettingsManager profileShared];
     _homepageField.stringValue     = s.homepage ?: @"";
     _searchField.stringValue       = s.searchEngineURL ?: @"";
     _jsToggle.state                = s.javascriptEnabled ? NSControlStateValueOn : NSControlStateValueOff;
@@ -356,7 +356,7 @@ static NSTextField* makeRowLabel(NSString* text) {
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 - (void)done:(id)_ {
-    SettingsManager* s  = [SettingsManager shared];
+    SettingsManager* s  = [SettingsManager profileShared];
     s.homepage          = _homepageField.stringValue;
     s.searchEngineURL   = _searchField.stringValue;
     s.javascriptEnabled = (_jsToggle.state             == NSControlStateValueOn);
@@ -375,7 +375,7 @@ static NSTextField* makeRowLabel(NSString* text) {
     [a addButtonWithTitle:@"Clear"];
     [a addButtonWithTitle:@"Cancel"];
     [a beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse r) {
-        if (r == NSAlertFirstButtonReturn) [[HistoryManager shared] clearAll];
+        if (r == NSAlertFirstButtonReturn) [[HistoryManager profileShared] clearAll];
     }];
 }
 
@@ -387,7 +387,7 @@ static NSTextField* makeRowLabel(NSString* text) {
     [a addButtonWithTitle:@"Cancel"];
     [a beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse r) {
         if (r == NSAlertFirstButtonReturn) {
-            [[SettingsManager shared] resetToDefaults];
+            [[SettingsManager profileShared] resetToDefaults];
             [self reloadValues];
         }
     }];

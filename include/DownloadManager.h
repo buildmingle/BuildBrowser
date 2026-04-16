@@ -19,7 +19,7 @@ typedef NS_ENUM(NSInteger, DownloadState) {
 
 // Manages all in-progress and completed downloads for the session
 @interface DownloadManager : NSObject <WKDownloadDelegate>
-+ (instancetype)shared;
++ (instancetype)profileShared;
 @property (readonly) NSArray<DownloadItem*>* items;
 @property (copy) void (^onUpdate)(void);   // called on any state change
 - (void)startDownload:(WKDownload*)dl;

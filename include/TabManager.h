@@ -1,6 +1,7 @@
 #pragma once
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+#import "Profile.h"
 
 // One tab = one WKWebView + its button in the tab strip
 @interface BrowserTab : NSObject
@@ -13,6 +14,9 @@
 
 // Owns all tabs, drives switching / creation / closing
 @interface TabManager : NSObject
+
+- (instancetype)initWithProfile:(Profile*)profile;
+@property (readonly) Profile* profile;
 
 @property (readonly) NSArray<BrowserTab*>* tabs;
 @property (readonly) BrowserTab*           activeTab;

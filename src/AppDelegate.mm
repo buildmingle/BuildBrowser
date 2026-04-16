@@ -1,16 +1,23 @@
 #import "BrowserWindowController.h"
+#import "ProfileManager.h"
+#import "BookmarkManager.h"
+#import "HistoryManager.h"
 #import <Cocoa/Cocoa.h>
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
-@property(strong) BrowserWindowController *mainWindow;
+@property(strong) NSMutableArray<BrowserWindowController*> *windows;
 @end
 
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)_ {
+  self.windows = [NSMutableArray new];
   [self buildMenu];
-  _mainWindow = [BrowserWindowController new];
-  [_mainWindow showWindow:nil];
+  
+  Profile* p = [ProfileManager shared].activeProfile;
+  BrowserWindowController* wc = [[BrowserWindowController alloc] initWithProfile:p];
+  [self.windows addObject:wc];
+  [wc showWindow:nil];
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)_ {
@@ -105,7 +112,11 @@
 
 // Close-tab forwarded to window controller
 - (void)closeCurrentTab:(id)_ {
-  [_mainWindow.tabManager closeTabAtIndex:_mainWindow.tabManager.activeIndex];
+  NSWindow* win = [NSApp keyWindow];
+  if ([win.windowController isKindOfClass:[BrowserWindowController class]]) {
+    BrowserWindowController* wc = (BrowserWindowController*)win.windowController;
+    [wc.tabManager closeTabAtIndex:wc.tabManager.activeIndex];
+  }
 }
 
 @end

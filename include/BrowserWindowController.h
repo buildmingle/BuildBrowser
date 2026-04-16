@@ -1,10 +1,12 @@
 #pragma once
 #import <Cocoa/Cocoa.h>
 #import "TabManager.h"
+#import "Profile.h"
 
 @interface BrowserWindowController : NSWindowController <NSWindowDelegate>
-- (instancetype)init;
+- (instancetype)initWithProfile:(Profile*)profile;
 @property (readonly) TabManager* tabManager;
+@property (readonly) Profile* profile;
 
 // Actions reachable from menu / keyboard
 - (void)newTab:(id)sender;

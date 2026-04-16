@@ -3,7 +3,8 @@
 
 // All settings stored in NSUserDefaults under "KBrowser.*"
 @interface SettingsManager : NSObject
-+ (instancetype)shared;
++ (instancetype)profileShared;
+- (instancetype)initWithRootPath:(NSString*)path;
 
 // General
 @property (copy) NSString* homepage;        // default: https://start.duckduckgo.com

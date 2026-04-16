@@ -11,8 +11,9 @@
 // Persists history to ~/Library/Application Support/KBrowser/history.plist
 // Keeps the 2000 most recent entries; auto-deduplicates by URL per day.
 @interface HistoryManager : NSObject
-+ (instancetype)shared;
++ (instancetype)profileShared;
 @property (readonly) NSArray<HistoryEntry*>* entries;  // newest first
+- (instancetype)initWithRootPath:(NSString*)path;
 - (void)recordVisitWithTitle:(NSString*)title url:(NSString*)url;
 - (void)clearAll;
 - (void)save;

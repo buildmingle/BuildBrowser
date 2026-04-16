@@ -1,5 +1,6 @@
 #import "ContentBlocker.h"
 #import "SettingsManager.h"
+#import "ProfileManager.h"
 
 @implementation ContentBlocker {
     WKContentRuleList* _ruleList;
@@ -13,7 +14,7 @@
 }
 
 - (void)applyToConfiguration:(WKWebViewConfiguration*)config completion:(void(^)(void))completion {
-    if (![SettingsManager shared].adBlockEnabled) {
+    if (![SettingsManager profileShared].adBlockEnabled) {
         if (completion) completion();
         return;
     }

@@ -13,6 +13,9 @@ add_executable(BuildBrowser MACOSX_BUNDLE
     src/HistoryManager.mm
     src/SettingsManager.mm
     src/DownloadManager.mm
+    src/Profile.mm
+    src/ProfileManager.mm
+    src/ProfilePanel.mm
     src/SettingsPanel.mm
     src/SidePanel.mm
     src/DownloadsPanel.mm

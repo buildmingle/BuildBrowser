@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #import "BookmarkManager.h"
 #import "HistoryManager.h"
+#import "ProfileManager.h"
 
 @interface SidePanel : NSWindowController <NSTableViewDataSource, NSTableViewDelegate>
 @property (copy) void (^openURLCallback)(NSString* url);
@@ -141,8 +142,8 @@ typedef NS_ENUM(NSInteger, SidePanelMode) { ModeBookmarks, ModeHistory };
 - (void)reloadData {
     NSString* q = _searchField.stringValue.lowercaseString;
     NSArray* source = (_mode == ModeBookmarks)
-        ? (NSArray*)[BookmarkManager shared].bookmarks
-        : (NSArray*)[HistoryManager  shared].entries;
+        ? (NSArray*)[BookmarkManager profileShared].bookmarks
+        : (NSArray*)[HistoryManager  profileShared].entries;
 
     _filtered = q.length == 0 ? source :
         [source filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:
@@ -290,10 +291,10 @@ typedef NS_ENUM(NSInteger, SidePanelMode) { ModeBookmarks, ModeHistory };
     NSInteger row = _tableView.selectedRow;
     if (row < 0 || row >= (NSInteger)_filtered.count) return;
     NSString* url = [_filtered[row] valueForKey:@"url"];
-    NSArray<Bookmark*>* bms = [BookmarkManager shared].bookmarks;
+    NSArray<Bookmark*>* bms = [BookmarkManager profileShared].bookmarks;
     for (NSInteger i = 0; i < (NSInteger)bms.count; i++) {
         if ([bms[i].url isEqualToString:url]) {
-            [[BookmarkManager shared] removeBookmarkAtIndex:i]; break;
+            [[BookmarkManager profileShared] removeBookmarkAtIndex:i]; break;
         }
     }
     [self reloadData];

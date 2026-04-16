@@ -15,9 +15,10 @@
 
 @implementation TabManager
 
-- (instancetype)init {
+- (instancetype)initWithProfile:(Profile*)profile {
     self = [super init];
     if (self) {
+        _profile      = profile;
         _mutableTabs  = [NSMutableArray new];
         _currentIndex = -1;
     }
@@ -33,6 +34,18 @@
 - (BrowserTab*)newTabWithURL:(NSString*)url {
     WKWebViewConfiguration* config = [WKWebViewConfiguration new];
     config.preferences.javaScriptCanOpenWindowsAutomatically = NO;
+    
+    // Set up persistent data store for the profile (macOS 14+)
+    if (@available(macOS 14.0, *)) {
+        NSUUID* uuid = [[NSUUID alloc] initWithUUIDString:_profile.uuid];
+        if (uuid) {
+            config.websiteDataStore = [WKWebsiteDataStore dataStoreForIdentifier:uuid];
+        }
+    } else {
+        // Fallback for macOS < 14: use nonPersistent for privacy or default for shared
+        config.websiteDataStore = [WKWebsiteDataStore nonPersistentDataStore];
+    }
+    
     [[ContentBlocker shared] applyToConfiguration:config completion:nil];
 
     BrowserTab* tab   = [BrowserTab new];

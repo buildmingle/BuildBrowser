@@ -39,28 +39,37 @@
 // ── BookmarkManager
 // ───────────────────────────────────────────────────────────
 
+#import "ProfileManager.h"
+
 @interface BookmarkManager ()
-@property(strong) NSMutableArray<Bookmark *> *mutableBookmarks;
+@property (strong) NSMutableArray<Bookmark*>* mutableBookmarks;
+@property (copy) NSString* rootPath;
 @end
 
 @implementation BookmarkManager
 
-+ (instancetype)shared {
-  static BookmarkManager *inst;
-  static dispatch_once_t t;
-  dispatch_once(&t, ^{
-    inst = [BookmarkManager new];
-  });
-  return inst;
++ (instancetype)profileShared {
+    static NSMutableDictionary* instances;
+    static dispatch_once_t t;
+    dispatch_once(&t, ^{ instances = [NSMutableDictionary new]; });
+    
+    Profile* p = [ProfileManager shared].activeProfile;
+    if (!p) return nil;
+    
+    if (!instances[p.uuid]) {
+        instances[p.uuid] = [[BookmarkManager alloc] initWithRootPath:[p dataDirectory]];
+    }
+    return instances[p.uuid];
 }
 
-- (instancetype)init {
-  self = [super init];
-  if (self) {
-    _mutableBookmarks = [NSMutableArray new];
-    [self load];
-  }
-  return self;
+- (instancetype)initWithRootPath:(NSString*)path {
+    self = [super init];
+    if (self) {
+        _rootPath = path;
+        _mutableBookmarks = [NSMutableArray new];
+        [self load];
+    }
+    return self;
 }
 
 - (NSArray<Bookmark *> *)bookmarks {
@@ -111,13 +120,6 @@
 }
 
 - (NSString *)filePath {
-  NSString *support = [NSSearchPathForDirectoriesInDomains(
-      NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject];
-  NSString *dir = [support stringByAppendingPathComponent:@"BuildBrowser"];
-  [[NSFileManager defaultManager] createDirectoryAtPath:dir
-                            withIntermediateDirectories:YES
-                                             attributes:nil
-                                                  error:nil];
-  return [dir stringByAppendingPathComponent:@"bookmarks.plist"];
+  return [_rootPath stringByAppendingPathComponent:@"bookmarks.plist"];
 }
 @end

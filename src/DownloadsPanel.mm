@@ -1,5 +1,5 @@
-#import <Cocoa/Cocoa.h>
 #import "DownloadManager.h"
+#import "ProfileManager.h"
 
 @interface DownloadsPanel : NSWindowController <NSTableViewDataSource, NSTableViewDelegate>
 + (instancetype)shared;
@@ -32,11 +32,13 @@
     if (!self) return nil;
     [self buildUI];
 
-    DownloadsPanel* __unsafe_unretained ws = self;
-    [DownloadManager shared].onUpdate = ^{
+    __weak DownloadsPanel* weakSelf = self;
+    [DownloadManager profileShared].onUpdate = ^{
         dispatch_async(dispatch_get_main_queue(), ^{
-            [ws->_tableView reloadData];
-            ws->_emptyLabel.hidden = ([DownloadManager shared].items.count > 0);
+            DownloadsPanel* strongSelf = weakSelf;
+            if (!strongSelf) return;
+            [strongSelf->_tableView reloadData];
+            strongSelf->_emptyLabel.hidden = ([DownloadManager profileShared].items.count > 0);
         });
     };
     return self;
@@ -112,14 +114,14 @@
 
 - (void)show {
     [_tableView reloadData];
-    _emptyLabel.hidden = ([DownloadManager shared].items.count > 0);
+    _emptyLabel.hidden = ([DownloadManager profileShared].items.count > 0);
     [self.window makeKeyAndOrderFront:nil];
 }
 
 // ── NSTableViewDataSource ─────────────────────────────────────────────────────
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView*)_ {
-    return (NSInteger)[DownloadManager shared].items.count;
+    return (NSInteger)[DownloadManager profileShared].items.count;
 }
 
 - (NSView*)tableView:(NSTableView*)tv viewForTableColumn:(NSTableColumn*)_ row:(NSInteger)row {
@@ -174,7 +176,7 @@
         [cell addSubview:rowSep];
     }
 
-    DownloadItem* item = [DownloadManager shared].items[row];
+    DownloadItem* item = [DownloadManager profileShared].items[row];
 
     for (NSView* sub in cell.subviews) {
         if ([sub.identifier isEqualToString:@"icon"]) {
@@ -231,7 +233,7 @@
             btn.action = @selector(actionButtonClicked:);
 
         } else if ([sub.identifier isEqualToString:@"sep"]) {
-            sub.hidden = (row == (NSInteger)[DownloadManager shared].items.count - 1);
+            sub.hidden = (row == (NSInteger)[DownloadManager profileShared].items.count - 1);
         }
     }
     return cell;
@@ -241,7 +243,7 @@
 
 - (void)actionButtonClicked:(NSButton*)btn {
     NSInteger row = btn.tag;
-    NSArray<DownloadItem*>* items = [DownloadManager shared].items;
+    NSArray<DownloadItem*>* items = [DownloadManager profileShared].items;
     if (row >= (NSInteger)items.count) return;
     DownloadItem* item = items[row];
     if (item.destinationPath)
@@ -252,7 +254,7 @@
 - (void)revealInFinder:(id)_ {
     NSInteger row = _tableView.clickedRow;
     if (row < 0) return;
-    NSArray<DownloadItem*>* items = [DownloadManager shared].items;
+    NSArray<DownloadItem*>* items = [DownloadManager profileShared].items;
     if (row >= (NSInteger)items.count) return;
     DownloadItem* item = items[row];
     if (item.destinationPath)
@@ -261,7 +263,7 @@
 }
 
 - (void)clearCompleted:(id)_ {
-    NSMutableArray* items = [[DownloadManager shared].items mutableCopy];
+    NSMutableArray* items = [[DownloadManager profileShared].items mutableCopy];
     [items filterUsingPredicate:[NSPredicate predicateWithBlock:
         ^BOOL(DownloadItem* i, NSDictionary* _) {
             return i.state == DownloadStateInProgress;

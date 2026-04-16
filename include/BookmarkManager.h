@@ -10,8 +10,9 @@
 
 // Persists bookmarks to ~/Library/Application Support/KBrowser/bookmarks.plist
 @interface BookmarkManager : NSObject
-+ (instancetype)shared;
++ (instancetype)profileShared;
 @property (readonly) NSArray<Bookmark*>* bookmarks;
+- (instancetype)initWithRootPath:(NSString*)path;
 - (void)addBookmarkWithTitle:(NSString*)title url:(NSString*)url;
 - (void)removeBookmarkAtIndex:(NSInteger)index;
 - (BOOL)isBookmarked:(NSString*)url;
